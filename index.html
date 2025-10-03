@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -19,6 +20,25 @@
     #topHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; }
     #developer { font-size: 14px; color: #555; }
     body.dark #developer { color: #ccc; }
+
+    /* NEW: Records Found below developer */
+    #recordsFound {
+      font-size: 14px;
+      margin-top: 2px;
+    }
+    #recordsFound span {
+      font-weight: bold;
+      color: blue;
+    }
+
+    /* Make Total Records value bold, label normal */
+    #totalRecords {
+      font-weight: normal; /* label stays normal */
+    }
+    #totalRecordsValue {
+      font-weight: bold; /* only value is bold */
+    }
+
     #sheetInfo { text-align: right; font-size: 14px; color: #555; }
     body.dark #sheetInfo { color: #bbb; }
 
@@ -148,9 +168,12 @@
 </head>
 <body>
   <div id="topHeader">
-    <div id="developer">Developer: Rodney Belangdal</div>
+    <div>
+      <div id="developer">Developer: Rodney Belangdal</div>
+      <div id="recordsFound">Records Found: <span id="recordsCount">0</span></div>
+    </div>
     <div id="sheetInfo">
-      <div id="totalRecords">Total Records: 0</div>
+      <div id="totalRecords">Total Records: <span id="totalRecordsValue">0</span></div>
       <div id="sheetName">&nbsp;</div>
       <div id="status">Loading data…</div>
     </div>
@@ -201,13 +224,12 @@
   <div id="results"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-
   <script>
     const apiURL = "https://script.google.com/macros/s/AKfycbzl2hyJ6R807HCLGRZXPgniqPhuHpxJpSIEzy3cXE-W9Otnr6RUGh5L9TxB7OMgns3i/exec";
     let sheetData = [];
     let totalRecords = 0;
 
-    const FIELDS_TO_SHOW = [ "DATE RECEIPT", "RELEASED_D", "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO", "LOT/SURVEY NO", "LAND AREA", "BARANGAYID_F", "CLASSIFICATIONID_F", "PLUSCODES", "OR NO", "OR DATE", "REMARKS" ];
+    const FIELDS_TO_SHOW = [ "DATE RECEIPT", "RELEASED_D", "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO", "LAND AREA", "BARANGAYID_F", "CLASSIFICATIONID_F", "PLUSCODES", "OR NO", "OR DATE", "REMARKS" ];
     const SEARCHABLE_FIELDS = [ "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO" ];
 
     const dropdown = document.getElementById("searchField");
@@ -248,8 +270,9 @@
           return obj;
         });
         totalRecords = sheetData.length;
-        document.getElementById("totalRecords").textContent = `Total Records: ${totalRecords}`;
+        document.getElementById("totalRecordsValue").textContent = totalRecords;
         document.getElementById("sheetName").textContent = rawData.spreadsheetName || "Unknown Sheet";
+        document.getElementById("recordsCount").textContent = 0;
         statusDiv.textContent = "Data loaded. You can now search.";
       } catch(err) {
         statusDiv.textContent = "Failed to load data.";
@@ -261,7 +284,7 @@
       uploadBtn.textContent = 'Upload QR';
     }
 
-    function fillFields(row) {
+     function fillFields(row) {
       FIELDS_TO_SHOW.forEach(field => {
         const el = document.getElementById(field);
         if (!el) return;
@@ -285,6 +308,9 @@
       const counterDiv = document.getElementById("counter");
       resultsDiv.innerHTML = "";
       counterDiv.textContent = `Showing ${data.length} of ${totalRecords} record(s)`;
+
+      // Update Records Found count
+      document.getElementById("recordsCount").textContent = data.length;
 
       if (!data.length) return;
 
@@ -318,17 +344,25 @@
       document.getElementById("results").innerHTML = "";
       document.getElementById("counter").textContent = "";
       document.getElementById("validatedMsg").style.display = "none";
+      // Reset Records Found when cleared
+      document.getElementById("recordsCount").textContent = 0;
     }
 
-    function runSearch() {
+    function flashRed() {
+      document.body.style.background = "#ffcccc";
+      setTimeout(() => { document.body.style.background = ""; }, 200);
+    }
+
+    function runSearch(fromTyping = false) {
+      clearResults();
+      clearFields();
+
       if (!sheetData.length) return;
       const query = document.getElementById("searchBox").value.trim().toLowerCase();
       const selectedField = document.getElementById("searchField").value;
       const validatedMsg = document.getElementById("validatedMsg");
 
       if (!query) {
-        clearResults();
-        clearFields();
         validatedMsg.style.display = "none";
         return;
       }
@@ -341,107 +375,132 @@
         validatedMsg.textContent = "VERIFIED DATA!";
         validatedMsg.style.color = "green";
         validatedMsg.style.display = "block";
+        if (fromTyping) playBeep("success");
       } else {
-        clearFields();
         validatedMsg.textContent = "NO RECORD FOUND!";
         validatedMsg.style.color = "red";
         validatedMsg.style.display = "block";
+        if (fromTyping) { playBeep("error"); flashRed(); }
       }
     }
 
     function clearSearch() {
       document.getElementById("searchBox").value = "";
       clearResults();
-      clearFields();
-      document.getElementById("searchBox").focus();
+      clearFields();   
     }
 
-    // Auto search as you type
-    document.getElementById("searchBox").addEventListener("input", runSearch);
+    let typingTimer;
+    const typingDelay = 1000; 
+    document.getElementById("searchBox").addEventListener("input", () => {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => { runSearch(true); }, typingDelay);
+    });
 
-    document.getElementById("searchBtn").addEventListener("click", runSearch);
+    document.getElementById("searchBtn").addEventListener("click", () => runSearch(true));
     document.getElementById("clearBtn").addEventListener("click", clearSearch);
-
     document.getElementById("darkModeBtn").addEventListener("click", () => document.body.classList.toggle("dark"));
 
+    function playBeep(type="success") {
+      try {
+        if (!window.beepAudioCtx) window.beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = window.beepAudioCtx;
+        const oscillator = ctx.createOscillator();
+        oscillator.type = "square";
+        oscillator.frequency.value = type === "success" ? 1000 : 300; 
+        oscillator.connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.12);
+      } catch(e) {}
+    }
+
     // QR Scanner
+    const scannerOverlay = document.getElementById("scannerOverlay");
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    let scanning = false, stream = null, animationId = null;
+    let scanning = false;
+    let stream = null;
 
-    async function startScanner() {
+    scanBtn.addEventListener("click", async () => {
+      scannerOverlay.style.display = "flex";
+      clearSearch();
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         video.srcObject = stream;
+        video.setAttribute("playsinline", true);
         video.play();
-        video.addEventListener("loadedmetadata", () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          scanning = true;
-          tick();
-        });
-        document.getElementById("scannerOverlay").style.display = "flex";
-        scanBtn.textContent = "Stop Scan";
-      } catch (err) {
-        alert("Camera error: " + err.message);
+        scanning = true;
+        requestAnimationFrame(tick);
+      } catch(e) {
+        alert("Camera access denied or unavailable.");
       }
-    }
+    });
 
-    function stopScanner() {
+    document.getElementById("closeScanner").addEventListener("click", () => {
+      scannerOverlay.style.display = "none";
       scanning = false;
-      if (animationId) cancelAnimationFrame(animationId);
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      document.getElementById("scannerOverlay").style.display = "none";
-      scanBtn.textContent = "Scan QR";
-    }
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    });
 
     function tick() {
       if (!scanning) return;
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
         if (code) {
+          scanning = false;
+          scannerOverlay.style.display = "none";
+          if (stream) stream.getTracks().forEach(track => track.stop());
           document.getElementById("searchBox").value = code.data;
-          document.getElementById("searchField").value = "CONTROL NO";
-          runSearch();
-          stopScanner();
+          runSearch(true);
         }
       }
-      animationId = requestAnimationFrame(tick);
+      requestAnimationFrame(tick);
     }
 
-    scanBtn.addEventListener("click", () => { if (scanning) stopScanner(); else startScanner(); });
-    document.getElementById("closeScanner").addEventListener("click", stopScanner);
+    // QR Upload
+    uploadBtn.addEventListener("click", () => document.getElementById("uploadQR").click());
 
-    document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("uploadQR").click());
-    document.getElementById("uploadQR").addEventListener("change", e => {
-      const file = e.target.files[0];
+    document.getElementById("uploadQR").addEventListener("change", function(){
+      const file = this.files[0];
       if (!file) return;
+
+      clearSearch();
+
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = e => {
         const img = new Image();
         img.onload = () => {
           canvas.width = img.width;
           canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          const code = jsQR(imageData.data, canvas.width, canvas.height);
+
           if (code) {
             document.getElementById("searchBox").value = code.data;
-            document.getElementById("searchField").value = "CONTROL NO";
-            runSearch();
+            runSearch(true);
           } else {
-            alert("No QR code found.");
+            flashRed();
+            playBeep("error");
+            const validatedMsg = document.getElementById("validatedMsg");
+            validatedMsg.textContent = "NO QR FOUND!";
+            validatedMsg.style.color = "red";
+            validatedMsg.style.display = "block";
           }
         };
-        img.src = reader.result;
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
+      this.value = "";
     });
 
-    loadData();
+    window.addEventListener("load", loadData);
   </script>
 </body>
 </html>
