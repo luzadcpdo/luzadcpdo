@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ZCQRScanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      max-width: 1000px; 
+      margin: 40px auto; 
+      position: relative;
+      background: #ffffff;
+      color: #000000;
+      transition: background 0.3s, color 0.3s;
+      padding: 10px;
+    }
+    body.dark { background: #121212; color: #f1f1f1; }
+
+    #topHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; }
+    #developer { font-size: 14px; color: #555; }
+    body.dark #developer { color: #ccc; }
+    #sheetInfo { text-align: right; font-size: 14px; color: #555; }
+    body.dark #sheetInfo { color: #bbb; }
+
+    #sheetInfo #status {
+      margin-top: 4px;
+      font-weight: bold;
+      color: green;
+    }
+    body.dark #sheetInfo #status { color: #80e080; }
+
+    #searchBox { padding: 8px; width: 50%; margin-right: 10px; margin-bottom:10px; min-width: 120px; }
+    #searchField { padding: 8px; width: 180px; margin-right: 10px; margin-bottom:10px; min-width: 120px; }
+    #searchBtn, #clearBtn, #scanBtn, #uploadBtn, #darkModeBtn { 
+      padding: 9px 15px; border: none; color: white; cursor: pointer; margin-bottom:10px; border-radius: 5px;
+      transition: background 0.3s, color 0.3s;
+      position: relative;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #searchBtn { background: #4285F4; margin-right: 5px; }
+    #searchBtn:hover { background: #357AE8; }
+    #clearBtn { background: #f44336; margin-right: 5px; }
+    #clearBtn:hover { background: #d32f2f; }
+    #scanBtn { background: #4CAF50; margin-right: 5px; }
+    #scanBtn:hover { background: #45a049; }
+    #uploadBtn { background: #FF9800; margin-right: 5px; }
+    #uploadBtn:hover { background: #e68900; }
+    #darkModeBtn { background: #333; margin-left: 5px; }
+    body.dark #darkModeBtn { background: #666; color: #fff; }
+
+    .spinner {
+      border: 3px solid transparent;
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      animation: spin 1s linear infinite;
+    }
+    .spinner.scan { border-top-color: #fff; }
+    .spinner.upload { border-top-color: #fff; }
+    body.dark .spinner.scan { border-top-color: #fff; }
+    body.dark .spinner.upload { border-top-color: #fff; }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #validatedMsg { 
+      font-weight: bold; 
+      display: none; 
+      font-size: 22px; 
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    #fields { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; border: 1px solid #ddd; }
+    body.dark #fields { background: #1e1e1e; border-color: #444; }
+    .field { display: flex; margin-bottom: 6px; flex-wrap: wrap; }
+    .field-name { font-weight: bold; min-width: 200px; color: #333; white-space: nowrap; }
+    body.dark .field-name { color: #ddd; }
+    .field-value { flex: 1; color: #555; word-wrap: break-word; }
+    body.dark .field-value { color: #ccc; }
+
+    #counter { margin-top: 10px; font-weight: bold; color: #444; }
+    body.dark #counter { color: #ccc; }
+
+    #results { margin-top: 10px; border-collapse: collapse; width: 100%; overflow-x:auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; word-wrap: break-word; }
+    th { background-color: #4285F4; color: white; font-weight: bold; text-align: left; }
+    tr:hover { background-color: #e8f0fe; cursor: pointer; }
+    body.dark th { background-color: #333; border-color: #555; }
+    body.dark td { border-color: #555; }
+    body.dark tr:hover { background-color: #444; }
+
+    /* Scanner popup overlay */
+    #scannerOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #scannerBox {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #scannerBox h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      text-align: center;
+      color: #333;
+    }
+    #video {
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 10px;
+      background: #000;
+    }
+    #canvas { display: none; }
+    #closeScanner {
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: #f44336;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #closeScanner:hover { background: #d32f2f; }
+  </style>
+</head>
+<body>
+  <div id="topHeader">
+    <div id="developer">Developer: Rodney Belangdal</div>
+    <div id="sheetInfo">
+      <div id="totalRecords">Total Records: 0</div>
+      <div id="sheetName">&nbsp;</div>
+      <div id="status">Loading data…</div>
+    </div>
+  </div>
+
+  <h2>LUZAD ZONING CERTIFICATION VERIFICATION @ CPDO2025</h2>
+  <select id="searchField"></select>
+  <input type="text" id="searchBox" placeholder="Search..." />
+  <button id="searchBtn">Search</button>
+  <button id="clearBtn">Clear</button>
+
+  <div>
+    <button id="scanBtn">Scan QR</button>
+    <button id="uploadBtn">Upload QR</button>
+    <button id="darkModeBtn">🌙 Dark Mode</button>
+  </div>
+
+  <div id="scannerOverlay">
+    <div id="scannerBox">
+      <h3>Scan QR Code</h3>
+      <video id="video" playsinline></video>
+      <canvas id="canvas"></canvas>
+      <button id="closeScanner">Close</button>
+    </div>
+  </div>
+
+  <div id="validatedMsg"></div>
+  <input type="file" id="uploadQR" accept="image/*" style="display:none;">
+
+  <div id="fields">
+    <div class="field"><span class="field-name">DATE RECEIPT :</span><span class="field-value" id="DATE RECEIPT">&nbsp;</span></div>
+    <div class="field"><span class="field-name">RELEASED DATE :</span><span class="field-value" id="RELEASED_D">&nbsp;</span></div>
+    <div class="field"><span class="field-name">CONTROL NO :</span><span class="field-value" id="CONTROL NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">PIN :</span><span class="field-value" id="PIN">&nbsp;</span></div>
+    <div class="field"><span class="field-name">NEW PIN :</span><span class="field-value" id="NEW PIN">&nbsp;</span></div>
+    <div class="field"><span class="field-name">APPLICANT NAME :</span><span class="field-value" id="APPLICANT NAME">&nbsp;</span></div>
+    <div class="field"><span class="field-name">LOT/SURVEY NO :</span><span class="field-value" id="LOT/SURVEY NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">LAND AREA :</span><span class="field-value" id="LAND AREA">&nbsp;</span></div>
+    <div class="field"><span class="field-name">BARANGAY :</span><span class="field-value" id="BARANGAYID_F">&nbsp;</span></div>
+    <div class="field"><span class="field-name">ZONE CLASS :</span><span class="field-value" id="CLASSIFICATIONID_F">&nbsp;</span></div>
+    <div class="field"><span class="field-name">PLUSCODE :</span><span class="field-value" id="PLUSCODES">&nbsp;</span></div>
+    <div class="field"><span class="field-name">OR NO :</span><span class="field-value" id="OR NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">OR DATE :</span><span class="field-value" id="OR DATE">&nbsp;</span></div>    
+    <div class="field"><span class="field-name">REMARKS :</span><span class="field-value" id="REMARKS">&nbsp;</span></div>
+  </div>
+
+  <div id="counter"></div>
+  <div id="results"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <script>
+    const apiURL = "https://script.google.com/macros/s/AKfycbzl2hyJ6R807HCLGRZXPgniqPhuHpxJpSIEzy3cXE-W9Otnr6RUGh5L9TxB7OMgns3i/exec";
+    let sheetData = [];
+    let totalRecords = 0;
+
+    const FIELDS_TO_SHOW = [ "DATE RECEIPT", "RELEASED_D", "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO", "LOT/SURVEY NO", "LAND AREA", "BARANGAYID_F", "CLASSIFICATIONID_F", "PLUSCODES", "OR NO", "OR DATE", "REMARKS" ];
+    const SEARCHABLE_FIELDS = [ "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO" ];
+
+    const dropdown = document.getElementById("searchField");
+    SEARCHABLE_FIELDS.forEach(field => {
+      const option = document.createElement("option");
+      option.value = field;
+      option.textContent = field;
+      dropdown.appendChild(option);
+    });
+
+    const scanBtn = document.getElementById("scanBtn");
+    const uploadBtn = document.getElementById("uploadBtn");
+
+    function formatLongDate(value) {
+      if (!value) return "\u00A0";
+      const date = new Date(value);
+      if (isNaN(date)) return value;
+      const options = { year: 'numeric', month: 'long', day: '2-digit' };
+      return date.toLocaleDateString('en-US', options);
+    }
+
+    async function loadData() {
+      scanBtn.disabled = true;
+      uploadBtn.disabled = true;
+      scanBtn.innerHTML = 'Scan QR <span class="spinner scan"></span>';
+      uploadBtn.innerHTML = 'Upload QR <span class="spinner upload"></span>';
+
+      const statusDiv = document.getElementById("status");
+      statusDiv.textContent = "Loading data…";
+
+      try {
+        const res = await fetch(apiURL);
+        const rawData = await res.json();
+        const headers = rawData.data[0];
+        sheetData = rawData.data.slice(1).map(row => {
+          let obj = {};
+          headers.forEach((h, i) => obj[h] = row[i]);
+          return obj;
+        });
+        totalRecords = sheetData.length;
+        document.getElementById("totalRecords").textContent = `Total Records: ${totalRecords}`;
+        document.getElementById("sheetName").textContent = rawData.spreadsheetName || "Unknown Sheet";
+        statusDiv.textContent = "Data loaded. You can now search.";
+      } catch(err) {
+        statusDiv.textContent = "Failed to load data.";
+      }
+
+      scanBtn.disabled = false;
+      uploadBtn.disabled = false;
+      scanBtn.textContent = 'Scan QR';
+      uploadBtn.textContent = 'Upload QR';
+    }
+
+    function fillFields(row) {
+      FIELDS_TO_SHOW.forEach(field => {
+        const el = document.getElementById(field);
+        if (!el) return;
+        let value = row[field] || "\u00A0";
+        if (field === "DATE RECEIPT" || field === "RELEASED_D" || field === "OR DATE") {
+          value = formatLongDate(value);
+        }
+        el.textContent = value;
+      });
+    }
+
+    function clearFields() {
+      FIELDS_TO_SHOW.forEach(field => {
+        const el = document.getElementById(field);
+        if (el) el.textContent = "\u00A0";
+      });
+    }
+
+    function showResults(data) {
+      const resultsDiv = document.getElementById("results");
+      const counterDiv = document.getElementById("counter");
+      resultsDiv.innerHTML = "";
+      counterDiv.textContent = `Showing ${data.length} of ${totalRecords} record(s)`;
+
+      if (!data.length) return;
+
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      ["CTRL NO", "APPLICANT", "LOT/SURVEY NO", "ZONE CLASS", "BARANGAY"].forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        ["CONTROL NO", "APPLICANT NAME", "LOT/SURVEY NO", "CLASSIFICATIONID_F", "BARANGAYID_F"].forEach(col => {
+          const td = document.createElement("td");
+          td.textContent = row[col] || "";
+          tr.appendChild(td);
+        });
+        tr.addEventListener("click", () => fillFields(row));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      resultsDiv.appendChild(table);
+    }
+
+    function clearResults() {
+      document.getElementById("results").innerHTML = "";
+      document.getElementById("counter").textContent = "";
+      document.getElementById("validatedMsg").style.display = "none";
+    }
+
+    function runSearch() {
+      if (!sheetData.length) return;
+      const query = document.getElementById("searchBox").value.trim().toLowerCase();
+      const selectedField = document.getElementById("searchField").value;
+      const validatedMsg = document.getElementById("validatedMsg");
+
+      if (!query) {
+        clearResults();
+        clearFields();
+        validatedMsg.style.display = "none";
+        return;
+      }
+
+      const filtered = sheetData.filter(row => row[selectedField] && String(row[selectedField]).trim().toLowerCase() === query);
+      showResults(filtered);
+
+      if (filtered.length > 0) {
+        fillFields(filtered[0]);
+        validatedMsg.textContent = "VERIFIED DATA!";
+        validatedMsg.style.color = "green";
+        validatedMsg.style.display = "block";
+      } else {
+        clearFields();
+        validatedMsg.textContent = "NO RECORD FOUND!";
+        validatedMsg.style.color = "red";
+        validatedMsg.style.display = "block";
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById("searchBox").value = "";
+      clearResults();
+      clearFields();
+      document.getElementById("searchBox").focus();
+    }
+
+    // Auto search as you type
+    document.getElementById("searchBox").addEventListener("input", runSearch);
+
+    document.getElementById("searchBtn").addEventListener("click", runSearch);
+    document.getElementById("clearBtn").addEventListener("click", clearSearch);
+
+    document.getElementById("darkModeBtn").addEventListener("click", () => document.body.classList.toggle("dark"));
+
+    // QR Scanner
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let scanning = false, stream = null, animationId = null;
+
+    async function startScanner() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.play();
+        video.addEventListener("loadedmetadata", () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          scanning = true;
+          tick();
+        });
+        document.getElementById("scannerOverlay").style.display = "flex";
+        scanBtn.textContent = "Stop Scan";
+      } catch (err) {
+        alert("Camera error: " + err.message);
+      }
+    }
+
+    function stopScanner() {
+      scanning = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      document.getElementById("scannerOverlay").style.display = "none";
+      scanBtn.textContent = "Scan QR";
+    }
+
+    function tick() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        if (code) {
+          document.getElementById("searchBox").value = code.data;
+          document.getElementById("searchField").value = "CONTROL NO";
+          runSearch();
+          stopScanner();
+        }
+      }
+      animationId = requestAnimationFrame(tick);
+    }
+
+    scanBtn.addEventListener("click", () => { if (scanning) stopScanner(); else startScanner(); });
+    document.getElementById("closeScanner").addEventListener("click", stopScanner);
+
+    document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("uploadQR").click());
+    document.getElementById("uploadQR").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code) {
+            document.getElementById("searchBox").value = code.data;
+            document.getElementById("searchField").value = "CONTROL NO";
+            runSearch();
+          } else {
+            alert("No QR code found.");
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>
