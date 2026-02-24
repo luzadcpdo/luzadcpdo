@@ -1,136 +1,507 @@
+
+
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>SubCert Verification</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: Arial; margin: 20px; transition: background 0.3s, color 0.3s; }
-.header {
-    font-size: 24px;
-    font-weight: bold;
-    padding: 15px 0;
-    text-align: center;
-    border-bottom: 2px solid #333;
-    margin-bottom: 20px;
-}
-.search-section { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
-.search-label { font-weight: bold; min-width: 120px; }
-.search-section input[type="text"], .search-section button {
-    flex: 1 1 auto;
-    min-width: 120px;
-    padding: 6px 10px;
-    box-sizing: border-box;
-}
-button { cursor: pointer; }
-button + button { margin-left: 0; } /* spacing handled by flex gap */
+  <title>ZCQRScanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      max-width: 1000px; 
+      margin: 40px auto; 
+      position: relative;
+      background: #ffffff;
+      color: #000000;
+      transition: background 0.3s, color 0.3s;
+      padding: 10px;
+    }
+    body.dark { background: #121212; color: #f1f1f1; }
 
-/* Details container */
-.container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
-.container > div { flex: 1 1 100%; display: flex; }
-.label { font-weight: bold; min-width: 120px; }
-.colon { margin: 0 4px; display: none; }
-.container div[id] { flex: 1; word-break: break-word; }
+    #topHeader { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; }
+    #developer { font-size: 14px; color: #555; }
+    body.dark #developer { color: #ccc; }
 
-/* Status & record info */
-#statusContainer { text-align: left; margin-bottom: 15px; font-size: 13px; }
-#statusContainer div { margin: 2px 0; }
-#recordCount { color: blue; font-weight: bold; }
-#loadedMsg { font-weight: bold; color: green; }
-#matchStatus { font-weight: bold; font-size: 16px; margin-bottom: 15px; color: green; }
-#sheetName { text-align:left; font-weight:normal; margin-bottom:10px; font-size:13px; color:#000000; }
+    /* NEW: Records Found below developer */
+    #recordsFound {
+      font-size: 14px;
+      margin-top: 2px;
+    }
+    #recordsFound span {
+      font-weight: bold;
+      color: blue;
+    }
 
-/* Table */
-#multiTableContainer { display: none; margin-top: 20px; overflow-x: auto; }
-#multiTable { border-collapse: collapse; width: 100%; min-width: 600px; transition: background 0.3s, color 0.3s; }
-#multiTable th, #multiTable td { border: 1px solid #333; padding: 6px; text-align: left; transition: background 0.3s, color 0.3s; }
-#multiTable th { background-color: #f2f2f2; }
-#multiTable tr.selected { background-color: #d0eaff; cursor: pointer; }
+    /* Make Total Records value bold, label normal */
+    #totalRecords {
+      font-weight: normal; /* label stays normal */
+    }
+    #totalRecordsValue {
+      font-weight: bold; /* only value is bold */
+    }
 
-/* DARK MODE STYLES */
-body.dark-mode { background: #1e1e1e; color: #ccc; }
-body.dark-mode input, body.dark-mode button { background: #333; color: #fff; border: 1px solid #555; }
-body.dark-mode #loadedMsg { color: #00ff00; }
-body.dark-mode #multiTable { border-color: #555; }
-body.dark-mode #multiTable th { background: #555; color: #fff; }
-body.dark-mode #multiTable td { border-color: #666; }
-body.dark-mode #multiTable tr.selected { background-color: #3399ff; color: #fff; }
-body.dark-mode #sheetName { color: #fff; }
-body.dark-mode #matchStatus { color: #99ff99; }
+    #sheetInfo { text-align: right; font-size: 14px; color: #555; }
+    body.dark #sheetInfo { color: #bbb; }
 
-/* MOBILE ADJUSTMENTS */
-@media (max-width: 600px) {
-    body { margin: 10px 5px; }
-    .search-section { flex-direction: column; gap: 6px; }
-    .search-label { min-width: 0; }
-    .search-section input[type="text"], .search-section button { width: 100%; }
-    .container { flex-direction: column; }
-    .container > div { flex-direction: column; }
-    .label { margin-bottom: 2px; }
-    .colon { display: none; }
-}
-</style>
+    #sheetInfo #status {
+      margin-top: 4px;
+      font-weight: bold;
+      color: green;
+    }
+    body.dark #sheetInfo #status { color: #80e080; }
+
+    #searchBox { padding: 8px; width: 50%; margin-right: 10px; margin-bottom:10px; min-width: 120px; }
+    #searchField { padding: 8px; width: 180px; margin-right: 10px; margin-bottom:10px; min-width: 120px; }
+    #searchBtn, #clearBtn, #scanBtn, #uploadBtn, #darkModeBtn { 
+      padding: 9px 15px; border: none; color: white; cursor: pointer; margin-bottom:10px; border-radius: 5px;
+      transition: background 0.3s, color 0.3s;
+      position: relative;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #searchBtn { background: #4285F4; margin-right: 5px; }
+    #searchBtn:hover { background: #357AE8; }
+    #clearBtn { background: #f44336; margin-right: 5px; }
+    #clearBtn:hover { background: #d32f2f; }
+    #scanBtn { background: #4CAF50; margin-right: 5px; }
+    #scanBtn:hover { background: #45a049; }
+    #uploadBtn { background: #FF9800; margin-right: 5px; }
+    #uploadBtn:hover { background: #e68900; }
+    #darkModeBtn { background: #333; margin-left: 5px; }
+    body.dark #darkModeBtn { background: #666; color: #fff; }
+
+    .spinner {
+      border: 3px solid transparent;
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      animation: spin 1s linear infinite;
+    }
+    .spinner.scan { border-top-color: #fff; }
+    .spinner.upload { border-top-color: #fff; }
+    body.dark .spinner.scan { border-top-color: #fff; }
+    body.dark .spinner.upload { border-top-color: #fff; }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #validatedMsg { 
+      font-weight: bold; 
+      display: none; 
+      font-size: 22px; 
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    #fields { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px; border: 1px solid #ddd; }
+    body.dark #fields { background: #1e1e1e; border-color: #444; }
+    .field { display: flex; margin-bottom: 6px; flex-wrap: wrap; }
+    .field-name { font-weight: bold; min-width: 200px; color: #333; white-space: nowrap; }
+    body.dark .field-name { color: #ddd; }
+    .field-value { flex: 1; color: #555; word-wrap: break-word; }
+    body.dark .field-value { color: #ccc; }
+
+    #counter { margin-top: 10px; font-weight: bold; color: #444; }
+    body.dark #counter { color: #ccc; }
+
+    #results { margin-top: 10px; border-collapse: collapse; width: 100%; overflow-x:auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; word-wrap: break-word; }
+    th { background-color: #4285F4; color: white; font-weight: bold; text-align: left; }
+    tr:hover { background-color: #e8f0fe; cursor: pointer; }
+    body.dark th { background-color: #333; border-color: #555; }
+    body.dark td { border-color: #555; }
+    body.dark tr:hover { background-color: #444; }
+
+    /* Scanner popup overlay */
+    #scannerOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    #scannerBox {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #scannerBox h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      text-align: center;
+      color: #333;
+    }
+    #video {
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 10px;
+      background: #000;
+    }
+    #canvas { display: none; }
+    #closeScanner {
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: #f44336;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #closeScanner:hover { background: #d32f2f; }
+  </style>
 </head>
 <body>
-
-<div class="header">SUBD CERT VERIFICATION</div>
-
-<div id="statusContainer">
-    <div id="loadedMsg">Loading data...</div>
-    <div id="recordMsg">Record: <span id="recordCount">0</span></div>
-    <div id="sheetName">&nbsp;</div>
-</div>
-
-<div id="matchStatus"></div>
-
-<div class="search-section">
-    <span class="search-label">Search TrackNo :</span>
-    <input type="text" id="searchInput" placeholder="Enter TrackNo" disabled>
-    <button id="clearBtn">Clear</button>
-    <button id="darkModeBtn">Dark Mode</button>
-</div>
-
-<div class="container">
-    <div class="label">TrackNo</div><div class="colon">:</div><div id="TrackNo"></div>
-    <div class="label">Date Receipt</div><div class="colon">:</div><div id="DateReceipt"></div>
-    <div class="label">Lot/SurveyNo</div><div class="colon">:</div><div id="Lot/SurveyNo"></div>
-    <div class="label">Lot Area</div><div class="colon">:</div><div id="LotArea"></div>
-    <div class="label">Zone Classification</div><div class="colon">:</div><div id="Landclass"></div>
-    <div class="label">Barangay</div><div class="colon">:</div><div id="Barangay"></div>
-    <div class="label">Subdivided Area</div><div class="colon">:</div><div id="SubdividedArea"></div>
-    <div class="label">Date Approved DENRLMB</div><div class="colon">:</div><div id="DateApprovedDENRLMB"></div>
-    <div class="label">RoadWidth</div><div class="colon">:</div><div id="RoadWidth"></div>
-    <div class="label">Applicant Name</div><div class="colon">:</div><div id="ApplicantName"></div>
-    <div class="label">Lot Owner</div><div class="colon">:</div><div id="LotOwner"></div>
-    <div class="label">Legal Basis</div><div class="colon">:</div><div id="legalbasis_f"></div>
-    <div class="label">OR No</div><div class="colon">:</div><div id="ORNo"></div>
-    <div class="label">Amount Paid</div><div class="colon">:</div><div id="AmountPaid"></div>
-    <div class="label">Date Released</div><div class="colon">:</div><div id="DateSignedHead"></div>
-    <div class="label">Remarks</div><div class="colon">:</div><div id="Remarks"></div>
-</div>
-
-<div id="multiTableContainer">
-    <h3>Matched Records</h3>
-    <div style="overflow-x:auto;">
-        <table id="multiTable">
-            <thead>
-                <tr>
-                    <th>TrackNo</th>
-                    <th>Date Receipt</th>
-                    <th>Lot/SurveyNo</th>
-                    <th>Lot Area</th>
-                    <th>Zone Classification</th>
-                    <th>Barangay</th>
-                </tr>
-            </thead>
-            <tbody id="multiTableBody"></tbody>
-        </table>
+  <div id="topHeader">
+    <div>
+      <div id="developer">Developer: Rodney Belangdal</div>
+      <div id="recordsFound">Records Found: <span id="recordsCount">0</span></div>
     </div>
-</div>
+    <div id="sheetInfo">
+      <div id="totalRecords">Total Records: <span id="totalRecordsValue">0</span></div>
+      <div id="sheetName">&nbsp;</div>
+      <div id="status">Loading data…</div>
+    </div>
+  </div>
 
-<script>
-// Your existing JS code stays exactly the same
-</script>
+  <h2>LUZAD ZONING CERTIFICATION VERIFICATION @ CPDO2025</h2>
+  <select id="searchField"></select>
+  <input type="text" id="searchBox" placeholder="Search..." />
+  <button id="searchBtn">Search</button>
+  <button id="clearBtn">Clear</button>
 
+  <div>
+    <button id="scanBtn">Scan QR</button>
+    <button id="uploadBtn">Upload QR</button>
+    <button id="darkModeBtn">🌙 Dark Mode</button>
+  </div>
+
+  <div id="scannerOverlay">
+    <div id="scannerBox">
+      <h3>Scan QR Code</h3>
+      <video id="video" playsinline></video>
+      <canvas id="canvas"></canvas>
+      <button id="closeScanner">Close</button>
+    </div>
+  </div>
+
+  <div id="validatedMsg"></div>
+  <input type="file" id="uploadQR" accept="image/*" style="display:none;">
+
+  <div id="fields">
+    <div class="field"><span class="field-name">DATE RECEIPT :</span><span class="field-value" id="DATE RECEIPT">&nbsp;</span></div>
+    <div class="field"><span class="field-name">RELEASED DATE :</span><span class="field-value" id="RELEASED_D">&nbsp;</span></div>
+    <div class="field"><span class="field-name">CONTROL NO :</span><span class="field-value" id="CONTROL NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">PIN :</span><span class="field-value" id="PIN">&nbsp;</span></div>
+    <div class="field"><span class="field-name">NEW PIN :</span><span class="field-value" id="NEW PIN">&nbsp;</span></div>
+    <div class="field"><span class="field-name">APPLICANT NAME :</span><span class="field-value" id="APPLICANT NAME">&nbsp;</span></div>
+    <div class="field"><span class="field-name">LOT/SURVEY NO :</span><span class="field-value" id="LOT/SURVEY NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">LAND AREA :</span><span class="field-value" id="LAND AREA">&nbsp;</span></div>
+    <div class="field"><span class="field-name">BARANGAY :</span><span class="field-value" id="BARANGAYID_F">&nbsp;</span></div>
+    <div class="field"><span class="field-name">ZONE CLASS :</span><span class="field-value" id="CLASSIFICATIONID_F">&nbsp;</span></div>
+    <div class="field"><span class="field-name">PLUSCODE :</span><span class="field-value" id="PLUSCODES">&nbsp;</span></div>
+    <div class="field"><span class="field-name">OR NO :</span><span class="field-value" id="OR NO">&nbsp;</span></div>
+    <div class="field"><span class="field-name">OR DATE :</span><span class="field-value" id="OR DATE">&nbsp;</span></div>    
+    <div class="field"><span class="field-name">REMARKS :</span><span class="field-value" id="REMARKS">&nbsp;</span></div>
+  </div>
+
+  <div id="counter"></div>
+  <div id="results"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    const apiURL = "https://script.google.com/macros/s/AKfycbzl2hyJ6R807HCLGRZXPgniqPhuHpxJpSIEzy3cXE-W9Otnr6RUGh5L9TxB7OMgns3i/exec";
+    let sheetData = [];
+    let totalRecords = 0;
+
+    const FIELDS_TO_SHOW = [ "DATE RECEIPT", "RELEASED_D", "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO", "LAND AREA", "BARANGAYID_F", "CLASSIFICATIONID_F", "PLUSCODES", "OR NO", "OR DATE", "REMARKS" ];
+    const SEARCHABLE_FIELDS = [ "CONTROL NO", "PIN", "NEW PIN", "APPLICANT NAME", "LOT/SURVEY NO" ];
+
+    const dropdown = document.getElementById("searchField");
+    SEARCHABLE_FIELDS.forEach(field => {
+      const option = document.createElement("option");
+      option.value = field;
+      option.textContent = field;
+      dropdown.appendChild(option);
+    });
+
+    const scanBtn = document.getElementById("scanBtn");
+    const uploadBtn = document.getElementById("uploadBtn");
+
+    function formatLongDate(value) {
+      if (!value) return "\u00A0";
+      const date = new Date(value);
+      if (isNaN(date)) return value;
+      const options = { year: 'numeric', month: 'long', day: '2-digit' };
+      return date.toLocaleDateString('en-US', options);
+    }
+
+    async function loadData() {
+      scanBtn.disabled = true;
+      uploadBtn.disabled = true;
+      scanBtn.innerHTML = 'Scan QR <span class="spinner scan"></span>';
+      uploadBtn.innerHTML = 'Upload QR <span class="spinner upload"></span>';
+
+      const statusDiv = document.getElementById("status");
+      statusDiv.textContent = "Loading data…";
+
+      try {
+        const res = await fetch(apiURL);
+        const rawData = await res.json();
+        const headers = rawData.data[0];
+        sheetData = rawData.data.slice(1).map(row => {
+          let obj = {};
+          headers.forEach((h, i) => obj[h] = row[i]);
+          return obj;
+        });
+        totalRecords = sheetData.length;
+        document.getElementById("totalRecordsValue").textContent = totalRecords;
+        document.getElementById("sheetName").textContent = rawData.spreadsheetName || "Unknown Sheet";
+        document.getElementById("recordsCount").textContent = 0;
+        statusDiv.textContent = "Data loaded. You can now search.";
+      } catch(err) {
+        statusDiv.textContent = "Failed to load data.";
+      }
+
+      scanBtn.disabled = false;
+      uploadBtn.disabled = false;
+      scanBtn.textContent = 'Scan QR';
+      uploadBtn.textContent = 'Upload QR';
+    }
+
+     function fillFields(row) {
+      FIELDS_TO_SHOW.forEach(field => {
+        const el = document.getElementById(field);
+        if (!el) return;
+        let value = row[field] || "\u00A0";
+        if (field === "DATE RECEIPT" || field === "RELEASED_D" || field === "OR DATE") {
+          value = formatLongDate(value);
+        }
+        el.textContent = value;
+      });
+    }
+
+    function clearFields() {
+      FIELDS_TO_SHOW.forEach(field => {
+        const el = document.getElementById(field);
+        if (el) el.textContent = "\u00A0";
+      });
+    }
+
+    function showResults(data) {
+      const resultsDiv = document.getElementById("results");
+      const counterDiv = document.getElementById("counter");
+      resultsDiv.innerHTML = "";
+      counterDiv.textContent = `Showing ${data.length} of ${totalRecords} record(s)`;
+
+      // Update Records Found count
+      document.getElementById("recordsCount").textContent = data.length;
+
+      if (!data.length) return;
+
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      ["CTRL NO", "APPLICANT", "LOT/SURVEY NO", "ZONE CLASS", "BARANGAY"].forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        ["CONTROL NO", "APPLICANT NAME", "LOT/SURVEY NO", "CLASSIFICATIONID_F", "BARANGAYID_F"].forEach(col => {
+          const td = document.createElement("td");
+          td.textContent = row[col] || "";
+          tr.appendChild(td);
+        });
+        tr.addEventListener("click", () => fillFields(row));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      resultsDiv.appendChild(table);
+    }
+
+    function clearResults() {
+      document.getElementById("results").innerHTML = "";
+      document.getElementById("counter").textContent = "";
+      document.getElementById("validatedMsg").style.display = "none";
+      // Reset Records Found when cleared
+      document.getElementById("recordsCount").textContent = 0;
+    }
+
+    function flashRed() {
+      document.body.style.background = "#ffcccc";
+      setTimeout(() => { document.body.style.background = ""; }, 200);
+    }
+
+    function runSearch(fromTyping = false) {
+      clearResults();
+      clearFields();
+
+      if (!sheetData.length) return;
+      const query = document.getElementById("searchBox").value.trim().toLowerCase();
+      const selectedField = document.getElementById("searchField").value;
+      const validatedMsg = document.getElementById("validatedMsg");
+
+      if (!query) {
+        validatedMsg.style.display = "none";
+        return;
+      }
+
+      const filtered = sheetData.filter(row => row[selectedField] && String(row[selectedField]).trim().toLowerCase() === query);
+      showResults(filtered);
+
+      if (filtered.length > 0) {
+        fillFields(filtered[0]);
+        validatedMsg.textContent = "VERIFIED DATA!";
+        validatedMsg.style.color = "green";
+        validatedMsg.style.display = "block";
+        if (fromTyping) playBeep("success");
+      } else {
+        validatedMsg.textContent = "NO RECORD FOUND!";
+        validatedMsg.style.color = "red";
+        validatedMsg.style.display = "block";
+        if (fromTyping) { playBeep("error"); flashRed(); }
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById("searchBox").value = "";
+      clearResults();
+      clearFields();   
+    }
+
+    let typingTimer;
+    const typingDelay = 1000; 
+    document.getElementById("searchBox").addEventListener("input", () => {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => { runSearch(true); }, typingDelay);
+    });
+
+    document.getElementById("searchBtn").addEventListener("click", () => runSearch(true));
+    document.getElementById("clearBtn").addEventListener("click", clearSearch);
+    document.getElementById("darkModeBtn").addEventListener("click", () => document.body.classList.toggle("dark"));
+
+    function playBeep(type="success") {
+      try {
+        if (!window.beepAudioCtx) window.beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = window.beepAudioCtx;
+        const oscillator = ctx.createOscillator();
+        oscillator.type = "square";
+        oscillator.frequency.value = type === "success" ? 1000 : 300; 
+        oscillator.connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.12);
+      } catch(e) {}
+    }
+
+    // QR Scanner
+    const scannerOverlay = document.getElementById("scannerOverlay");
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    let scanning = false;
+    let stream = null;
+
+    scanBtn.addEventListener("click", async () => {
+      scannerOverlay.style.display = "flex";
+      clearSearch();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true);
+        video.play();
+        scanning = true;
+        requestAnimationFrame(tick);
+      } catch(e) {
+        alert("Camera access denied or unavailable.");
+      }
+    });
+
+    document.getElementById("closeScanner").addEventListener("click", () => {
+      scannerOverlay.style.display = "none";
+      scanning = false;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    });
+
+    function tick() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (code) {
+          scanning = false;
+          scannerOverlay.style.display = "none";
+          if (stream) stream.getTracks().forEach(track => track.stop());
+          document.getElementById("searchBox").value = code.data;
+          runSearch(true);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // QR Upload
+    uploadBtn.addEventListener("click", () => document.getElementById("uploadQR").click());
+
+    document.getElementById("uploadQR").addEventListener("change", function(){
+      const file = this.files[0];
+      if (!file) return;
+
+      clearSearch();
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+          if (code) {
+            document.getElementById("searchBox").value = code.data;
+            runSearch(true);
+          } else {
+            flashRed();
+            playBeep("error");
+            const validatedMsg = document.getElementById("validatedMsg");
+            validatedMsg.textContent = "NO QR FOUND!";
+            validatedMsg.style.color = "red";
+            validatedMsg.style.display = "block";
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      this.value = "";
+    });
+
+    window.addEventListener("load", loadData);
+  </script>
 </body>
 </html>
